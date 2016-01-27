@@ -21,3 +21,6 @@ build/chip_eight.o: src/chip_eight.cpp
 build/main.o: src/main.cpp
 	$(CC) $(CFLAGS) $(INC) -c src/main.cpp -o build/main.o
 
+clean:
+	rm -rf bin build
+
