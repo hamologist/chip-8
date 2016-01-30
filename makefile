@@ -40,7 +40,7 @@ test/googletest: lib/googletest
 	make; \
 	cp libgtest_main.a libgtest.a $(ROOT_DIR)/lib/googletest; \
 	cd include; \
-	cp -r gtest/ $(ROOT_DIR)/include;
+	cp -r gtest $(ROOT_DIR)/include;
 
 bin/test_main.out: build/test_main.o build/chip_eight.o
 	$(CC) $(CFLAGS) build/chip_eight.o build/test_main.o -o bin/test_main.out $(TESTLIB)
