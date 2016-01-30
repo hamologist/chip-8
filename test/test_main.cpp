@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 #include "chip_eight.h"
 
 class ChipEightTest : public ::testing::Test {

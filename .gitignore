@@ -1,3 +1,6 @@
 .*.swp
 *.out
 *.o
+test/googletest/
+include/gtest/
+lib/
