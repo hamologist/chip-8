@@ -11,6 +11,7 @@ class ChipEight {
         ChipEight ();
         const std::array<std::uint8_t, 4096> &get_memory();
         const std::array<std::uint8_t, display_size> &get_display_memory();
+        std::uint16_t get_pc();
         void set_i_register(std::uint16_t value);
         void execute_instruction();
 

@@ -28,6 +28,17 @@ TEST_F(ChipEightTest, Opcode00D0) {
     EXPECT_EQ(chip_eight_display, all_zeroes);
 }
 
+TEST_F(ChipEightTest, Opcode1nnn) {
+    auto pc = chip_eight.get_pc();
+
+    EXPECT_EQ(pc, 0x0200);
+
+    chip_eight.set_i_register(0x1234);
+    chip_eight.execute_instruction();
+    pc = chip_eight.get_pc();
+    EXPECT_EQ(pc, 0x0234);
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
