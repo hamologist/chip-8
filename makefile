@@ -2,7 +2,7 @@ CC := clang++
 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-CFLAGS := -std=c++0x
+CFLAGS := -std=c++0x -g
 LIB := 
 INC := -I include
 TESTDIR := lib/googletest/
@@ -49,4 +49,7 @@ build/test_main.o: test/test_main.cpp
 	$(CC) $(CFLAGS) $(INC) -c test/test_main.cpp -o build/test_main.o
 
 clean:
-	rm -rf bin build test/googletest include/gtest lib/googletest
+	rm -rf bin build
+
+clean-all:
+	rm -rf bin build include/gtest lib/googletest

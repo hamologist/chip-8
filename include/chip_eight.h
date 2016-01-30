@@ -4,11 +4,19 @@
 
 class ChipEight {
     public:
-        std::array<std::uint8_t, 4096> get_memory();
+        const static std::uint16_t width = 64;
+        const static std::uint16_t height = 32;
+        const static std::uint16_t display_size = width * height / 8;
+
         ChipEight ();
+        const std::array<std::uint8_t, 4096> &get_memory();
+        const std::array<std::uint8_t, display_size> &get_display_memory();
+        void set_i_register(std::uint16_t value);
+        void execute_instruction();
 
     private:
         std::array<std::uint8_t, 4096> memory; 
+        std::array<std::uint8_t, display_size> display_memory;
         std::array<std::uint16_t, 16> stack;
         std::array<std::uint8_t, 16> v_registers;
 
