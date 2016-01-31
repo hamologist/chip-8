@@ -10,7 +10,7 @@ TESTLIB := -L$(TESTDIR) -lgtest -lpthread
 
 all: bin build bin/main.out
 
-test: bin build test/googletest bin/test_main.out
+test: bin build test/googletest test/test_main.out
 
 bin:
 	mkdir -p bin
@@ -42,8 +42,8 @@ test/googletest: lib/googletest
 	cd include; \
 	cp -r gtest $(ROOT_DIR)/include;
 
-bin/test_main.out: build/test_main.o build/chip_eight.o
-	$(CC) $(CFLAGS) build/chip_eight.o build/test_main.o -o bin/test_main.out $(TESTLIB)
+test/test_main.out: build/test_main.o build/chip_eight.o
+	$(CC) $(CFLAGS) build/chip_eight.o build/test_main.o -o test/test_main.out $(TESTLIB)
 
 build/test_main.o: test/test_main.cpp
 	$(CC) $(CFLAGS) $(INC) -c test/test_main.cpp -o build/test_main.o
