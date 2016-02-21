@@ -1,6 +1,7 @@
 .*.swp
 *.out
 *.o
+tags
 test/googletest/
 include/gtest/
 lib/
