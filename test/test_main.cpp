@@ -68,18 +68,8 @@ TEST_F(ChipEightTest, Opcode7XNN) {
 /*
  * Sets VX = VY
  */
-TEST_F(ChipEightTest, Opcode7XNN) {
-    auto &v_registers = chip_eight.get_v_registers();
-
-    EXPECT_EQ(v_registers[0], 0x0000);
-
-    chip_eight.set_i_register(0x7002);
-    chip_eight.execute_instruction();
-    EXPECT_EQ(v_registers[0], 0x0002);
-
-    chip_eight.set_i_register(0x7002);
-    chip_eight.execute_instruction();
-    EXPECT_EQ(v_registers[0], 0x0004);
+TEST_F(ChipEightTest, Opcode8XY0) {
+    //TODO
 }
 
 int main(int argc, char **argv) {

@@ -1,6 +1,10 @@
+#ifndef CHIP_EIGHT_H
+#define CHIP_EIGHT_H
 #include <iostream>
 #include <cstdint>
 #include <array>
+#include <random>
+#include <chrono>
 
 class ChipEight {
     public:
@@ -28,3 +32,4 @@ class ChipEight {
         std::uint8_t sound_register;
         std::uint8_t delay_register;
 };
+#endif //CHIP_EIGHT_H

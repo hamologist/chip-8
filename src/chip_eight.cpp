@@ -31,6 +31,14 @@ void ChipEight::set_i_register(std::uint16_t value) {
     i_register = value;
 }
 
+std::uint8_t get_random_byte() {
+    auto seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine random_number_generator(seed);
+    std::uniform_int_distribution<uint8_t> distribution(0, 255);
+
+    return distribution(random_number_generator);
+}
+
 /*
  *  Executes varying instructions using the provided opcodes against the Chip-8 system
  *
@@ -96,12 +104,24 @@ void ChipEight::execute_instruction() {
                 case 0x0003: // Sets VX = VX ^ VY
                     *vx ^= *vy;
                     break;
-                case 0x0004: { // Sets Vx = VX + VY and VF as carry
+                case 0x0004: { // Sets VX = VX + VY and VF as carry
                     std::uint16_t sum = *vx + *vy;
                     v_registers[0xF] = sum >> 8;
                     *vx = sum;
                     break;
                 }
+                case 0x0005: // Sets VX = VX - VY and VF as borrow
+                    // TODO
+                    break;
+                case 0x0006:
+                    // TODO
+                    break;
+                case 0x0007:
+                    // TODO
+                    break;
+                case 0x000E:
+                    // TODO
+                    break;
             }
             break;
         case 0x9000: // Skip the following instruction if VX != VY
@@ -109,8 +129,17 @@ void ChipEight::execute_instruction() {
                 pc += 4;
             }
             break;
-        case 0xB000: // Sets the program counter to 0nnn + V0
+        case 0xA000: // Sets the I register to NNN
+            i_register = i_register & 0x0FFF;
+            break;
+        case 0xB000: // Sets the program counter to NNN + V0
             pc = (i_register & 0x0FFF) + v_registers[0];
+            break;
+        case 0xC000: // Sets VX = (a random byte) & NN
+            *vx = get_random_byte() + (i_register & 0x00FF);
+            break;
+        case 0xD000: //Display sprite
+            // TODO
             break;
         case 0xE000:
             switch (i_register & 0x00FF) {
@@ -135,6 +164,21 @@ void ChipEight::execute_instruction() {
                     break;
                 case (0x0018): // Set the sound register to the value of VX
                     sound_register = *vx;
+                    break;
+                case (0x001E): // Set the I register to I + VX
+                    i_register += *vx;
+                    break;
+                case (0x0029):
+                    // TODO
+                    break;
+                case (0x0033):
+                    // TODO
+                    break;
+                case (0x0055):
+                    // TODO
+                    break;
+                case (0x0065):
+                    // TODO
                     break;
             }
         break;
