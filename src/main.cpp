@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
     // Thanks bisqwit: http://bisqwit.iki.fi/jutut/kuvat/programming_examples/chip8/chip8.cc
 
     // Create screen
-    SDL_Window *window = SDL_CreateWindow("Chip-8", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, ChipEight::width*4, ChipEight::height*6, SDL_WINDOW_RESIZABLE);
+    SDL_Window *window = SDL_CreateWindow(argv[1], SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, ChipEight::width*4, ChipEight::height*6, SDL_WINDOW_RESIZABLE);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
     SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, ChipEight::width, ChipEight::height);
 
@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
     auto start = std::chrono::system_clock::now();
     while(!interrupted)
     {
-        for (uint16_t a = 0; a < max_consecutive_insns && !(cpu.get_waiting_key() & 0x80); ++a) {
+        for (unsigned a = 0; a < max_consecutive_insns && !(cpu.get_waiting_key() & 0x80); ++a) {
             cpu.execute_instruction();
         }
         for (SDL_Event ev; SDL_PollEvent(&ev); ) {
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
                         interrupted = true;
                         break;
                     }
-                    if (ev.type == SDL_KEYDOWN) {
+                    if (ev.type == SDL_KEYDOWN && (cpu.get_waiting_key() & 0x80)) {
                         cpu.set_waiting_key(cpu.get_waiting_key() & 0x7F);
                         cpu.set_v_register(cpu.get_waiting_key(), i->second);
                     }

@@ -29,6 +29,10 @@ ChipEight::ChipEight() {
         0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
+
+    for (int i = 0; i < 80; i++) {
+        memory[i] = fonts[i];
+    }
 }
 
 const std::array<std::uint8_t, 4096> &ChipEight::get_memory() {
@@ -89,7 +93,7 @@ void ChipEight::set_waiting_key(std::uint8_t value) {
 
 void ChipEight::render_to_screen(std::uint32_t *pixels) {
     for (unsigned pos = 0; pos < ChipEight::width * ChipEight::height; ++pos) {
-        pixels[pos] = 0xFFFFFF * ((display_memory[pos/8] >> (7 - pos%8)) & 1);
+        pixels[pos] = 0xFFFFFF * ((display_memory[pos/8] >> (7 - pos % 8)) & 1);
     }
 }
 
@@ -111,6 +115,7 @@ void ChipEight::load_file(const char *filename, unsigned pos) {
 void ChipEight::execute_instruction() {
     uint8_t *vx = &v_registers[opcode >> 0x0008 & 0x000F];
     uint8_t *vy = &v_registers[opcode >> 0x0004 & 0x000F];
+    uint8_t pc_inc = 2;
     opcode = memory[pc] << 8 | memory[pc + 1];
 
     switch(opcode & 0xF000) {
@@ -120,15 +125,19 @@ void ChipEight::execute_instruction() {
                     display_memory.fill(0);
                     break;
                 case 0x00EE: // return from a subroutine
-                    pc = stack[(--sp) & 0x000F];
+                    --sp;
+                    pc = stack[(sp)];
                     break;
             }
             break;
         case 0x1000: // Set the program counter to 0nnn
+            pc_inc = 0;
             pc = opcode & 0x0FFF;
             break;
         case 0x2000: // Execute subroutine start at address NNN
-            stack[(sp++) & 0x000F] = pc;
+            pc_inc = 0;
+            stack[sp] = pc;
+            ++sp;
             pc = opcode & 0x0FFF;
             break;
         case 0x3000: // Skip the following instruction if VX == NN
@@ -290,5 +299,13 @@ void ChipEight::execute_instruction() {
             }
         break;
     }
-    pc += 2;
+    pc += pc_inc;
+
+    if (delay_register > 0) {
+        delay_register--;
+    }
+
+    if (sound_register > 0) {
+        sound_register--;
+    }
 }
