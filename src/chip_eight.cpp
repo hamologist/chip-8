@@ -2,6 +2,7 @@
 
 ChipEight::ChipEight() {
     pc = 0x0200;
+    opcode = 0x0200;
     sp = 0;
     sound_register = 0;
     delay_register = 0;
@@ -92,7 +93,7 @@ void ChipEight::render_to_screen(std::uint32_t *pixels) {
     }
 }
 
-void ChipEight::load_file(const char *filename, unsigned pos = 0x200) {
+void ChipEight::load_file(const char *filename, unsigned pos) {
     for (std::ifstream f(filename, std::ios::binary); f.good(); ) {
         memory[pos++ & 0xFFF] = f.get();
     }
@@ -108,12 +109,13 @@ void ChipEight::load_file(const char *filename, unsigned pos = 0x200) {
  *    - Y   => the upper 4 bits of the low byte of the instruction
  */
 void ChipEight::execute_instruction() {
-    auto *vx = &v_registers[i_register >> 0x0008 & 0x000F];
-    auto *vy = &v_registers[i_register >> 0x0004 & 0x000F];
+    uint8_t *vx = &v_registers[opcode >> 0x0008 & 0x000F];
+    uint8_t *vy = &v_registers[opcode >> 0x0004 & 0x000F];
+    opcode = memory[pc] << 8 | memory[pc + 1];
 
-    switch(i_register & 0xF000) {
+    switch(opcode & 0xF000) {
         case 0x0000:
-            switch(i_register) {
+            switch(opcode & 0x00FF) {
                 case 0x00E0: // resets the display buffer
                     display_memory.fill(0);
                     break;
@@ -123,19 +125,19 @@ void ChipEight::execute_instruction() {
             }
             break;
         case 0x1000: // Set the program counter to 0nnn
-            pc = i_register & 0x0FFF;
+            pc = opcode & 0x0FFF;
             break;
         case 0x2000: // Execute subroutine start at address NNN
             stack[(sp++) & 0x000F] = pc;
-            pc = i_register & 0x0FFF;
+            pc = opcode & 0x0FFF;
             break;
         case 0x3000: // Skip the following instruction if VX == NN
-            if (*vx == (i_register & 0x00FF)) {
+            if (*vx == (opcode & 0x00FF)) {
                 pc += 2;
             }
             break;
         case 0x4000: // Skip the following instruction if VX != NN
-            if (*vx != (i_register & 0x00FF)) {
+            if (*vx != (opcode & 0x00FF)) {
                 pc += 2;
             }
             break;
@@ -145,13 +147,13 @@ void ChipEight::execute_instruction() {
             }
             break;
         case 0x6000: // Sets VX = NN
-            *vx = i_register & 0x00FF;
+            *vx = opcode & 0x00FF;
             break;
         case 0x7000: // Sets VX = VX + NN
-            *vx += i_register & 0x00FF;
+            *vx += opcode & 0x00FF;
             break;
         case 0x8000: 
-            switch (i_register & 0x000F) {
+            switch (opcode & 0x000F) {
                 case 0x0000: // Sets VX = VY
                     *vx = *vy;
                     break;
@@ -205,31 +207,35 @@ void ChipEight::execute_instruction() {
             }
             break;
         case 0xA000: // Sets the I register to NNN
-            i_register = i_register & 0x0FFF;
+            i_register = opcode & 0x0FFF;
             break;
         case 0xB000: // Sets the program counter to NNN + V0
-            pc = (i_register & 0x0FFF) + v_registers[0];
+            pc = (opcode & 0x0FFF) + v_registers[0];
             break;
         case 0xC000: // Sets VX = (a random byte) & NN
-            *vx = get_random_byte() + (i_register & 0x00FF);
+            *vx = get_random_byte() + (opcode & 0x00FF);
             break;
         case 0xD000: { //Display sprite
-            auto put = [this](int a, unsigned char b) { return ((display_memory[a] ^= b) ^ b) & b; };
-            uint16_t x = *vx;
-            uint16_t y = *vy;
-            uint16_t p = (i_register) >> 0 & 0xF;
-            uint16_t kk;
-            for(kk=0; p--;) {
-                kk |= put(((x + 0) % ChipEight::width + (y + p) % ChipEight::height * ChipEight::width) 
-                        / 8, memory[(i_register + p) & 0xFFF] >> (x % 8))
-                |  put(((x + 7) % ChipEight::width + (y + p) % ChipEight::height * ChipEight::width) 
-                        / 8, memory[(i_register + p) & 0xFFF] << (8 - x % 8));
+            std::uint8_t height = opcode & 0x000F;
+            std::uint16_t pixel;
+            v_registers[0xF] = 0;
+
+            for (std::uint16_t y = 0; y < height; y++) {
+                pixel = memory[i_register + y];
+                for (std::uint16_t x = 0; x < 8; x++) {
+                    if (pixel & (0x80 >> x)) {
+                        if (display_memory[x+*vx+(y+*vy)*64]) {
+                            v_registers[0xF] = 1;
+                        }
+                        display_memory[x+*vx+(y+*vy)*64] ^= 1;
+                    }
+                }
             }
-            v_registers[0xF] = (kk != 0);
+
             break;
         }
         case 0xE000:
-            switch (i_register & 0x00FF) {
+            switch (opcode & 0x00FF) {
                 case (0x009E): // Skip the following instruction if the key pressed matches VX
                     if (keys[*vx & 15]) {
                         pc += 2;
@@ -243,12 +249,12 @@ void ChipEight::execute_instruction() {
             }
             break;
         case 0xF000:
-            switch (i_register & 0x00FF) {
+            switch (opcode & 0x00FF) {
                 case (0x0007): // Store the current value of the delay register in VX
                     *vx = delay_register;
                     break;
                 case (0x000A): // Wait for a keypress and store the result in VX
-                    waiting_key = 0x80 | ((i_register >> 8) & 0xF);
+                    waiting_key = 0x80 | ((opcode >> 8) & 0xF);
                     break;
                 case (0x0015): // Set the delay register to the value of VX
                     delay_register = *vx;
@@ -271,13 +277,13 @@ void ChipEight::execute_instruction() {
                     break;
                 case (0x0055):
                     // Maybe
-                    for (int i = 0; i <= (i_register >> 0x0008 & 0x000F); i++) {
+                    for (int i = 0; i <= (opcode >> 0x0008 & 0x000F); i++) {
                         memory[i_register+i] = v_registers[i];
                     }
                     break;
                 case (0x0065):
                     // Maybe
-                    for (int i = 0; i <= (i_register >> 0x0008 & 0x000F); i++) {
+                    for (int i = 0; i <= (opcode >> 0x0008 & 0x000F); i++) {
                         v_registers[i] = memory[i_register + i];
                     }
                     break;

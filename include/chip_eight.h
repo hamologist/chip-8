@@ -27,7 +27,7 @@ class ChipEight {
         void set_delay_register(std::uint8_t value);
         void set_waiting_key(std::uint8_t value);
         void render_to_screen(uint32_t *pixels);
-        void load_file(const char *filename, unsigned pos);
+        void load_file(const char *filename, unsigned pos = 0x200);
         void execute_instruction();
 
     private:
@@ -42,6 +42,7 @@ class ChipEight {
         std::uint16_t pc;
         std::uint8_t sp;
         std::uint16_t i_register;
+        std::uint16_t opcode;
         std::uint8_t sound_register;
         std::uint8_t delay_register;
 };
