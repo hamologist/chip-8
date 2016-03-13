@@ -59,7 +59,7 @@ void ChipEight::execute_instruction() {
                     display_memory.fill(0);
                     break;
                 case 0x00EE: // return from a subroutine
-                    // TODO
+                    pc = stack[(--sp) & 0x000F];
                     break;
             }
             break;
@@ -67,21 +67,22 @@ void ChipEight::execute_instruction() {
             pc = i_register & 0x0FFF;
             break;
         case 0x2000: // Execute subroutine start at address NNN
-            // TODO
+            stack[(sp++) & 0x000F] = pc;
+            pc = i_register & 0x0FFF;
             break;
         case 0x3000: // Skip the following instruction if VX == NN
             if (*vx == (i_register & 0x00FF)) {
-                pc += 4;
+                pc += 2;
             }
             break;
         case 0x4000: // Skip the following instruction if VX != NN
             if (*vx != (i_register & 0x00FF)) {
-                pc += 4;
+                pc += 2;
             }
             break;
         case 0x5000: // Skip the following instruction if VX == VY
             if (*vx == *vy) {
-                pc += 4;
+                pc += 2;
             }
             break;
         case 0x6000: // Sets VX = NN
@@ -105,22 +106,37 @@ void ChipEight::execute_instruction() {
                     *vx ^= *vy;
                     break;
                 case 0x0004: { // Sets VX = VX + VY and VF as carry
-                    std::uint16_t sum = *vx + *vy;
-                    v_registers[0xF] = sum >> 8;
-                    *vx = sum;
+                    if ((uint16_t)*vx + (uint16_t)*vy > 256) {
+                        v_registers[0xF] = 0;
+                    } else {
+                        v_registers[0xF] = 1;
+                    }
+                    *vx += *vy;
                     break;
                 }
                 case 0x0005: // Sets VX = VX - VY and VF as borrow
-                    // TODO
+                    if ((uint16_t)*vx - (uint16_t)*vy >= 0) {
+                        v_registers[0xF] = 1;
+                    } else {
+                        v_registers[0xF] = 0;
+                    }
+                    *vx -= *vy;
                     break;
-                case 0x0006:
-                    // TODO
+                case 0x0006: // Shifts VX right by one and sets VF to the least significant bit
+                    v_registers[0xF] = *vx & 1;
+                    *vx = *vx >> 1;
                     break;
-                case 0x0007:
-                    // TODO
+                case 0x0007: // Sets VX = VY - VX and VF as borrow
+                    if ((uint16_t)*vx - (uint16_t)*vy > 0) {
+                        v_registers[0xF] = 1;
+                    } else {
+                        v_registers[0xF] = 0;
+                    }
+                    *vx = *vy - *vx;
                     break;
-                case 0x000E:
-                    // TODO
+                case 0x000E: // Shifts VX left by one and sets VF to the most significant bit
+                    v_registers[0xF] = *vx >> 7;
+                    *vx = *vx << 1;
                     break;
             }
             break;
@@ -169,18 +185,30 @@ void ChipEight::execute_instruction() {
                     i_register += *vx;
                     break;
                 case (0x0029):
-                    // TODO
+                    // Maybe
+                    i_register = *vx * 5;
                     break;
                 case (0x0033):
-                    // TODO
+                    // Maybe
+                    memory[i_register] = *vx / 100;
+                    memory[i_register+1] = (*vx / 10) % 10;
+                    memory[i_register+2] = *vx % 10;
                     break;
                 case (0x0055):
-                    // TODO
+                    // Maybe
+                    for (int i = 0; i <= (i_register >> 0x0008 & 0x000F); i++) {
+                        memory[i_register+i] = v_registers[i];
+                    }
                     break;
                 case (0x0065):
-                    // TODO
+                    // Maybe
+                    for (int i = 0; i <= (i_register >> 0x0008 & 0x000F); i++) {
+                        v_registers[i] = memory[i_register + i];
+                    }
                     break;
             }
         break;
     }
+
+    pc += 2;
 }
