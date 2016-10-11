@@ -176,7 +176,7 @@ void ChipEight::execute_instruction() {
                     *vx ^= *vy;
                     break;
                 case 0x0004: { // Sets VX = VX + VY and VF as carry
-                    if ((uint16_t)*vx + (uint16_t)*vy > 255) {
+                    if ((uint16_t)*vx + (uint16_t)*vy > 0xFF) {
                         v_registers[0xF] = 1;
                     } else {
                         v_registers[0xF] = 0;
@@ -185,7 +185,7 @@ void ChipEight::execute_instruction() {
                     break;
                 }
                 case 0x0005: // Sets VX = VX - VY and VF as borrow
-                    if ((uint16_t)*vx - (uint16_t)*vy >= 0) {
+                    if (*vx > *vy) {
                         v_registers[0xF] = 1;
                     } else {
                         v_registers[0xF] = 0;
@@ -193,7 +193,7 @@ void ChipEight::execute_instruction() {
                     *vx -= *vy;
                     break;
                 case 0x0006: // Shifts VX right by one and sets VF to the least significant bit
-                    v_registers[0xF] = *vx & 1;
+                    v_registers[0xF] = *vx & 0x1;
                     *vx = *vx >> 1;
                     break;
                 case 0x0007: // Sets VX = VY - VX and VF as borrow
