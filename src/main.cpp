@@ -36,7 +36,8 @@ int main(int argc, char **argv) {
         for (unsigned a = 0; a < max_consecutive_insns && !(cpu.get_waiting_key() & 0x80); ++a) {
             cpu.execute_instruction();
         }
-        for (SDL_Event ev; SDL_PollEvent(&ev); ) {
+        SDL_Event ev;
+        SDL_PollEvent(&ev);
             switch(ev.type) {
                 case SDL_QUIT: interrupted = true; break;
                 case SDL_KEYDOWN:
@@ -54,7 +55,6 @@ int main(int argc, char **argv) {
                         cpu.set_v_register(cpu.get_waiting_key(), i->second);
                     }
             }
-        }
         
         auto cur = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = cur-start;

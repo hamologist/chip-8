@@ -1,7 +1,9 @@
 .*.swp
 *.out
 *.o
+*.plist
 tags
 test/googletest/
 include/gtest/
 lib/
+nbproject/

@@ -113,8 +113,8 @@ void ChipEight::load_file(const char *filename, unsigned pos) {
  *    - Y   => the upper 4 bits of the low byte of the instruction
  */
 void ChipEight::execute_instruction() {
-    uint8_t *vx = &v_registers[opcode >> 0x0008 & 0x000F];
-    uint8_t *vy = &v_registers[opcode >> 0x0004 & 0x000F];
+    uint8_t *vx = &v_registers[(opcode & 0x0F00) >> 0x0008];
+    uint8_t *vy = &v_registers[(opcode & 0x00F0) >> 0x0004];
     uint8_t pc_inc = 2;
     opcode = memory[pc] << 8 | memory[pc + 1];
 
@@ -176,10 +176,10 @@ void ChipEight::execute_instruction() {
                     *vx ^= *vy;
                     break;
                 case 0x0004: { // Sets VX = VX + VY and VF as carry
-                    if ((uint16_t)*vx + (uint16_t)*vy > 256) {
-                        v_registers[0xF] = 0;
-                    } else {
+                    if ((uint16_t)*vx + (uint16_t)*vy > 255) {
                         v_registers[0xF] = 1;
+                    } else {
+                        v_registers[0xF] = 0;
                     }
                     *vx += *vy;
                     break;
@@ -233,10 +233,10 @@ void ChipEight::execute_instruction() {
                 pixel = memory[i_register + y];
                 for (std::uint16_t x = 0; x < 8; x++) {
                     if (pixel & (0x80 >> x)) {
-                        if (display_memory[x+*vx+(y+*vy)*64]) {
+                        if (display_memory[x+*vx+((y+*vy)*64)]) {
                             v_registers[0xF] = 1;
                         }
-                        display_memory[x+*vx+(y+*vy)*64] ^= 1;
+                        display_memory[x+*vx+((y+*vy)*64)] ^= 1;
                     }
                 }
             }
