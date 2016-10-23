@@ -3,8 +3,8 @@ CC := clang++
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 CFLAGS := -std=c++0x -g
-LIB := -lSDL2
-INC := -I include
+LIB := -L/usr/local/lib -lSDL2
+INC := -I include -I /usr/local/include
 TESTDIR := lib/googletest/
 TESTLIB := -L$(TESTDIR) -lgtest -lpthread
 
