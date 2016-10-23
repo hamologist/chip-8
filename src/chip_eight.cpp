@@ -9,6 +9,25 @@ ChipEight::ChipEight() {
     display_memory.fill(0);
     stack.fill(0);
     v_registers.fill(0);
+
+    fonts = {
+        0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+        0x20, 0x60, 0x20, 0x20, 0x70, // 1
+        0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+        0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+        0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+        0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+        0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+        0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+        0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+        0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+        0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+        0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+        0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+        0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+        0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+        0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    };
 }
 
 const std::array<std::uint8_t, 4096> &ChipEight::get_memory() {
@@ -27,16 +46,56 @@ std::uint16_t ChipEight::get_pc() {
     return pc;
 }
 
-void ChipEight::set_i_register(std::uint16_t value) {
-    i_register = value;
+std::uint8_t ChipEight::get_waiting_key() {
+    return waiting_key;
+}
+
+std::uint8_t ChipEight::get_sound_register() {
+    return sound_register;
+}
+
+std::uint8_t ChipEight::get_delay_register() {
+    return delay_register;
 }
 
 std::uint8_t get_random_byte() {
     auto seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine random_number_generator(seed);
-    std::uniform_int_distribution<uint8_t> distribution(0, 255);
+    std::uniform_int_distribution<std::uint8_t> distribution(0, 255);
 
     return distribution(random_number_generator);
+}
+
+void ChipEight::set_i_register(std::uint16_t value) {
+    i_register = value;
+}
+
+void ChipEight::set_v_register(std::uint16_t pos, std::uint16_t value) {
+    v_registers[pos] = value;
+}
+
+void ChipEight::set_sound_register(std::uint8_t value) {
+    sound_register = value;
+}
+
+void ChipEight::set_delay_register(std::uint8_t value) {
+    delay_register = value;
+}
+
+void ChipEight::set_waiting_key(std::uint8_t value) {
+    waiting_key = value;
+}
+
+void ChipEight::render_to_screen(std::uint32_t *pixels) {
+    for (unsigned pos = 0; pos < ChipEight::width * ChipEight::height; ++pos) {
+        pixels[pos] = 0xFFFFFF * ((display_memory[pos/8] >> (7 - pos%8)) & 1);
+    }
+}
+
+void ChipEight::load_file(const char *filename, unsigned pos = 0x200) {
+    for (std::ifstream f(filename, std::ios::binary); f.good(); ) {
+        memory[pos++ & 0xFFF] = f.get();
+    }
 }
 
 /*
@@ -154,16 +213,32 @@ void ChipEight::execute_instruction() {
         case 0xC000: // Sets VX = (a random byte) & NN
             *vx = get_random_byte() + (i_register & 0x00FF);
             break;
-        case 0xD000: //Display sprite
-            // TODO
+        case 0xD000: { //Display sprite
+            auto put = [this](int a, unsigned char b) { return ((display_memory[a] ^= b) ^ b) & b; };
+            uint16_t x = *vx;
+            uint16_t y = *vy;
+            uint16_t p = (i_register) >> 0 & 0xF;
+            uint16_t kk;
+            for(kk=0; p--;) {
+                kk |= put(((x + 0) % ChipEight::width + (y + p) % ChipEight::height * ChipEight::width) 
+                        / 8, memory[(i_register + p) & 0xFFF] >> (x % 8))
+                |  put(((x + 7) % ChipEight::width + (y + p) % ChipEight::height * ChipEight::width) 
+                        / 8, memory[(i_register + p) & 0xFFF] << (8 - x % 8));
+            }
+            v_registers[0xF] = (kk != 0);
             break;
+        }
         case 0xE000:
             switch (i_register & 0x00FF) {
                 case (0x009E): // Skip the following instruction if the key pressed matches VX
-                    // TODO
+                    if (keys[*vx & 15]) {
+                        pc += 2;
+                    }
                     break;
                 case (0x00A1): // Skip the following instruction if the key pressed doesn't match VX
-                    // TODO
+                    if (!keys[*vx & 15]) {
+                        pc += 2;
+                    }
                     break;
             }
             break;
@@ -173,7 +248,7 @@ void ChipEight::execute_instruction() {
                     *vx = delay_register;
                     break;
                 case (0x000A): // Wait for a keypress and store the result in VX
-                    // TODO
+                    waiting_key = 0x80 | ((i_register >> 8) & 0xF);
                     break;
                 case (0x0015): // Set the delay register to the value of VX
                     delay_register = *vx;
@@ -209,6 +284,5 @@ void ChipEight::execute_instruction() {
             }
         break;
     }
-
     pc += 2;
 }
