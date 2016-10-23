@@ -1,11 +1,15 @@
 #include "chip_eight.h"
 
 ChipEight::ChipEight() {
-    pc = 0x0200;
-    opcode = 0x0200;
+    pc = 0x200;
+    opcode = 0x200;
+    waiting_register = nullptr;
+    is_waiting = false;
     sp = 0;
     sound_register = 0;
     delay_register = 0;
+    i_register = 0;
+    keys.fill(0);
     memory.fill(0);
     display_memory.fill(0);
     stack.fill(0);
@@ -47,12 +51,16 @@ const std::array<std::uint8_t, 16> &ChipEight::get_v_registers() {
     return v_registers;
 }
 
+std::array<std::uint8_t, 16> &ChipEight::get_keys() {
+    return keys;
+}
+
 std::uint16_t ChipEight::get_pc() {
     return pc;
 }
 
-std::uint8_t ChipEight::get_waiting_key() {
-    return waiting_key;
+std::uint8_t *ChipEight::get_waiting_register() {
+    return waiting_register;
 }
 
 std::uint8_t ChipEight::get_sound_register() {
@@ -61,6 +69,10 @@ std::uint8_t ChipEight::get_sound_register() {
 
 std::uint8_t ChipEight::get_delay_register() {
     return delay_register;
+}
+
+bool ChipEight::get_is_waiting() {
+    return is_waiting;
 }
 
 std::uint8_t get_random_byte() {
@@ -87,20 +99,32 @@ void ChipEight::set_delay_register(std::uint8_t value) {
     delay_register = value;
 }
 
-void ChipEight::set_waiting_key(std::uint8_t value) {
-    waiting_key = value;
+void ChipEight::set_key(std::uint16_t pos, std::uint8_t value) {
+    keys[pos] = value;
+}
+
+void ChipEight::set_is_waiting(bool value) {
+    is_waiting = value;
 }
 
 void ChipEight::render_to_screen(std::uint32_t *pixels) {
-    for (unsigned pos = 0; pos < ChipEight::width * ChipEight::height; ++pos) {
-        pixels[pos] = 0xFFFFFF * ((display_memory[pos/8] >> (7 - pos % 8)) & 1);
+    for (std::uint8_t x = 0; x < height; x++) {
+        for (std::uint8_t y = 0; y < width; y++) {
+            pixels[y * 64 + x] = display_memory[y * 64 + x];
+        }
     }
 }
 
-void ChipEight::load_file(const char *filename, unsigned pos) {
-    for (std::ifstream f(filename, std::ios::binary); f.good(); ) {
-        memory[pos++ & 0xFFF] = f.get();
-    }
+void ChipEight::load_file(const char *filename) {
+    std::ifstream file;
+
+    file.open(filename, std::iostream::in | std::iostream::binary);
+    file.seekg(0, std::ios::end);
+    size_t file_size = file.tellg();
+
+    char *rom = (char*)(&(memory[0x200]));
+    file.seekg(0, std::iostream::beg);
+    file.read(rom, file_size);
 }
 
 /*
@@ -113,10 +137,12 @@ void ChipEight::load_file(const char *filename, unsigned pos) {
  *    - Y   => the upper 4 bits of the low byte of the instruction
  */
 void ChipEight::execute_instruction() {
-    uint8_t *vx = &v_registers[(opcode & 0x0F00) >> 0x0008];
-    uint8_t *vy = &v_registers[(opcode & 0x00F0) >> 0x0004];
-    uint8_t pc_inc = 2;
-    opcode = memory[pc] << 8 | memory[pc + 1];
+    opcode = (memory[pc] << 0x8) | memory[pc + 1];
+    std::uint16_t x = (opcode & 0x0F00) >> 0x8;
+    std::uint16_t y = (opcode & 0x00F0) >> 0x4;
+    std::uint8_t *vx = &v_registers[x & 0xF];
+    std::uint8_t *vy = &v_registers[y & 0xF];
+    std::uint8_t pc_inc = 2;
 
     switch(opcode & 0xF000) {
         case 0x0000:
@@ -125,8 +151,7 @@ void ChipEight::execute_instruction() {
                     display_memory.fill(0);
                     break;
                 case 0x00EE: // return from a subroutine
-                    --sp;
-                    pc = stack[(sp)];
+                    pc = stack[--sp];
                     break;
             }
             break;
@@ -136,23 +161,22 @@ void ChipEight::execute_instruction() {
             break;
         case 0x2000: // Execute subroutine start at address NNN
             pc_inc = 0;
-            stack[sp] = pc;
-            ++sp;
+            stack[sp++] = pc;
             pc = opcode & 0x0FFF;
             break;
         case 0x3000: // Skip the following instruction if VX == NN
             if (*vx == (opcode & 0x00FF)) {
-                pc += 2;
+                pc_inc += 2;
             }
             break;
         case 0x4000: // Skip the following instruction if VX != NN
             if (*vx != (opcode & 0x00FF)) {
-                pc += 2;
+                pc_inc += 2;
             }
             break;
         case 0x5000: // Skip the following instruction if VX == VY
             if (*vx == *vy) {
-                pc += 2;
+                pc_inc += 2;
             }
             break;
         case 0x6000: // Sets VX = NN
@@ -176,7 +200,7 @@ void ChipEight::execute_instruction() {
                     *vx ^= *vy;
                     break;
                 case 0x0004: { // Sets VX = VX + VY and VF as carry
-                    if ((uint16_t)*vx + (uint16_t)*vy > 0xFF) {
+                    if ((std::uint16_t)*vx + (std::uint16_t)*vy > 0xFF) {
                         v_registers[0xF] = 1;
                     } else {
                         v_registers[0xF] = 0;
@@ -197,7 +221,7 @@ void ChipEight::execute_instruction() {
                     *vx = *vx >> 1;
                     break;
                 case 0x0007: // Sets VX = VY - VX and VF as borrow
-                    if ((uint16_t)*vx - (uint16_t)*vy > 0) {
+                    if (*vy > *vx) {
                         v_registers[0xF] = 1;
                     } else {
                         v_registers[0xF] = 0;
@@ -205,14 +229,18 @@ void ChipEight::execute_instruction() {
                     *vx = *vy - *vx;
                     break;
                 case 0x000E: // Shifts VX left by one and sets VF to the most significant bit
-                    v_registers[0xF] = *vx >> 7;
+                    if (*vx & 0x80) {
+                        v_registers[0xF] = 1;
+                    } else {
+                        v_registers[0xF] = 0;
+                    }
                     *vx = *vx << 1;
                     break;
             }
             break;
         case 0x9000: // Skip the following instruction if VX != VY
             if (*vx != *vy) {
-                pc += 4;
+                pc += 2;
             }
             break;
         case 0xA000: // Sets the I register to NNN
@@ -222,10 +250,10 @@ void ChipEight::execute_instruction() {
             pc = (opcode & 0x0FFF) + v_registers[0];
             break;
         case 0xC000: // Sets VX = (a random byte) & NN
-            *vx = get_random_byte() + (opcode & 0x00FF);
+            *vx = (get_random_byte() % 255) & (opcode & 0x00FF);
             break;
         case 0xD000: { //Display sprite
-            std::uint8_t height = opcode & 0x000F;
+            std::uint16_t height = opcode & 0x000F;
             std::uint16_t pixel;
             v_registers[0xF] = 0;
 
@@ -246,12 +274,12 @@ void ChipEight::execute_instruction() {
         case 0xE000:
             switch (opcode & 0x00FF) {
                 case (0x009E): // Skip the following instruction if the key pressed matches VX
-                    if (keys[*vx & 15]) {
+                    if (keys[*vx]) {
                         pc += 2;
                     }
                     break;
                 case (0x00A1): // Skip the following instruction if the key pressed doesn't match VX
-                    if (!keys[*vx & 15]) {
+                    if (!keys[*vx]) {
                         pc += 2;
                     }
                     break;
@@ -263,7 +291,8 @@ void ChipEight::execute_instruction() {
                     *vx = delay_register;
                     break;
                 case (0x000A): // Wait for a keypress and store the result in VX
-                    waiting_key = 0x80 | ((opcode >> 8) & 0xF);
+                    waiting_register = vx;
+                    is_waiting = true;
                     break;
                 case (0x0015): // Set the delay register to the value of VX
                     delay_register = *vx;
@@ -276,23 +305,23 @@ void ChipEight::execute_instruction() {
                     break;
                 case (0x0029):
                     // Maybe
-                    i_register = *vx * 5;
+                    i_register = *vx * 0x5;
                     break;
                 case (0x0033):
                     // Maybe
                     memory[i_register] = *vx / 100;
                     memory[i_register+1] = (*vx / 10) % 10;
-                    memory[i_register+2] = *vx % 10;
+                    memory[i_register+2] = (*vx % 100) % 10;
                     break;
                 case (0x0055):
                     // Maybe
-                    for (int i = 0; i <= (opcode >> 0x0008 & 0x000F); i++) {
+                    for (std::uint8_t i = 0; i <= x; ++i) {
                         memory[i_register+i] = v_registers[i];
                     }
                     break;
                 case (0x0065):
                     // Maybe
-                    for (int i = 0; i <= (opcode >> 0x0008 & 0x000F); i++) {
+                    for (std::uint8_t i = 0; i <= x; ++i) {
                         v_registers[i] = memory[i_register + i];
                     }
                     break;

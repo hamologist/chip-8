@@ -22,11 +22,17 @@ lib/googletest:
 	mkdir -p lib/googletest
 
 # Main Code 
-bin/main.out: build/main.o build/chip_eight.o
-	$(CC) $(CFLAGS) build/chip_eight.o build/main.o -o bin/main.out $(LIB)
+bin/main.out: build/main.o build/chip_eight.o build/chip_eight_display.o build/chip_eight_controller.o
+	$(CC) $(CFLAGS) build/chip_eight.o build/chip_eight_display.o build/chip_eight_controller.o build/main.o -o bin/main.out $(LIB)
 
 build/chip_eight.o: src/chip_eight.cpp
 	$(CC) $(CFLAGS) $(INC) -c src/chip_eight.cpp -o build/chip_eight.o
+
+build/chip_eight_display.o: src/chip_eight_display.cpp
+	$(CC) $(CFLAGS) $(INC) -c src/chip_eight_display.cpp -o build/chip_eight_display.o
+
+build/chip_eight_controller.o: src/chip_eight_controller.cpp
+	$(CC) $(CFLAGS) $(INC) -c src/chip_eight_controller.cpp -o build/chip_eight_controller.o
 
 build/main.o: src/main.cpp
 	$(CC) $(CFLAGS) $(INC) -c src/main.cpp -o build/main.o
@@ -53,3 +59,8 @@ clean:
 
 clean-all:
 	rm -rf bin build include/gtest lib/googletest
+
+tags: src/* include/*
+	$(CC) $(CFLAGS) $(INC) -M src/* | sed -e 's/[\\ ]/\n/g' | \
+        sed -e '/^$$/d' -e '/\.o:[ \t]*$$/d' | \
+        ctags -L - --c++-kinds=+p --fields=+iaS --extra=+q
