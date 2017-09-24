@@ -1,0 +1,35 @@
+<html>
+<head>
+    <link rel="stylesheet" href="chip-eight.css">
+</head>
+<body>
+    <canvas id="chipEightDisplay" width="1024" height="512"></canvas>
+    <div id="chipEightConfig">
+        <select id="chipEightScale">
+            <option value="1">1X</option>
+            <option value="2">2X</option>
+            <option value="4">4X</option>
+            <option value="8">8X</option>
+            <option selected="selected" value="16">16X</option>
+            <option value="24">24X</option>
+            <option value="32">32X</option>
+        </select>
+        <select id="chipEightFPS">
+            <option value="10">10 FPS</option>
+            <option value="30">30 FPS</option>
+            <option selected="selected" value="60">60 FPS</option>
+            <option value="120">120 FPS</option>
+            <option value="240">240 FPS</option>
+        </select>
+        <select id="chipEightGamePicker">
+            <option value="games/invaders.c8">invaders.c8</option>
+            <option selected="selected" value="games/pong2.c8">pong2.c8</option>
+            <option value="games/tetris.c8">tetris.c8</option>
+        </select>
+        <input id="chipEightOnColor" type="text" value="#FFFFFF"></input>
+        <input id="chipEightOffColor" type="text" value="#000000"></input>
+    </div>
+    <script type="text/javascript" src="chip-eight-interface.js"></script>
+    <script type="text/javascript" src="chip-eight.js"></script>
+</body>
+</htmL>

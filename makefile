@@ -1,14 +1,24 @@
 CC := clang++
+EMCC := emcc
 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 CFLAGS := -std=c++0x -g
+EMCCFLAGS := -std=c++11 -O3
 LIB := -L/usr/local/lib -lSDL2
 INC := -I include -I /usr/local/include
 TESTDIR := lib/googletest/
 TESTLIB := -L$(TESTDIR) -lgtest -lpthread
 
 all: bin build bin/main.out
+
+wasm: \
+	wasm-deploy \
+	build \
+	wasm-deploy/chip-eight.js \
+	wasm-deploy/chip-eight-interface.js \
+	wasm-deploy/chip-eight.css \
+	wasm-deploy/index.html
 
 test: bin build test/googletest test/test_main.out
 
@@ -20,6 +30,9 @@ build:
 
 lib/googletest:
 	mkdir -p lib/googletest
+
+wasm-deploy: 
+	mkdir -p wasm-deploy
 
 # Main Code 
 bin/main.out: build/main.o build/chip_eight.o build/chip_eight_display.o build/chip_eight_controller.o
@@ -54,6 +67,31 @@ test/test_main.out: build/test_main.o build/chip_eight.o
 build/test_main.o: test/test_main.cpp
 	$(CC) $(CFLAGS) $(INC) -c test/test_main.cpp -o build/test_main.o
 
+# Wasm
+wasm-deploy/chip-eight.js: build/chip_eight.bc build/chip_eight_embind.bc
+	$(EMCC) $(EMCCFLAGS) $(INC) \
+		--bind -s WASM=1 \
+		build/chip_eight.bc \
+		build/chip_eight_embind.bc \
+		-o wasm-deploy/chip-eight.js \
+		--preload-file games
+
+wasm-deploy/chip-eight-interface.js:
+	cp wasm/chip-eight-interface.js wasm-deploy/chip-eight-interface.js
+
+wasm-deploy/chip-eight.css:
+	cp wasm/chip-eight.css wasm-deploy/chip-eight.css
+
+wasm-deploy/index.html:
+	cp wasm/index.html wasm-deploy/index.html
+
+build/chip_eight.bc: src/chip_eight.cpp
+	$(EMCC) $(EMCCFLAGS) $(INC) -c src/chip_eight.cpp -o build/chip_eight.bc
+
+build/chip_eight_embind.bc: src/chip_eight_embind.cpp
+	$(EMCC) $(EMCCFLAGS) $(INC) -c src/chip_eight_embind.cpp -o build/chip_eight_embind.bc
+
+# Other
 clean:
 	rm -rf bin build
 

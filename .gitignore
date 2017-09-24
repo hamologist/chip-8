@@ -6,4 +6,6 @@ tags
 test/googletest/
 include/gtest/
 lib/
+build/
 nbproject/
+wasm-deploy/
