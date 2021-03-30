@@ -20,6 +20,7 @@ This has been mapped to the following keys on a US English keyboard:
 * q-r
 * a-f
 * z-v
+
 Each of the games uses a different set of keys from those listed above.
 Determining the controls will be left as an exercise for the user.
 
